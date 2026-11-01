@@ -1,9 +1,14 @@
 import java.io.File;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import javax.imageio.ImageIO;
+import javax.swing.SwingUtilities;
 
 public class Main {
     private static final String USAGE = "Usage: java -cp out Main <image.jpg> <square size> <S|M>";
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         if (args.length != 3) {
             fail("Expected 3 arguments.");
         }
@@ -20,7 +25,8 @@ public class Main {
             fail("Mode must be S (single-threaded) or M (multi-threaded).");
         }
 
-        System.out.println("File: " + file.getName() + ", square size: " + size + ", mode: " + mode);
+        BufferedImage image = loadImage(file);
+        SwingUtilities.invokeAndWait(() -> ImageWindow.show(image, file.getName()));
     }
 
     private static int parseSize(String text) {
@@ -34,6 +40,18 @@ public class Main {
             fail("Square size must be a positive integer.");
         }
         return size;
+    }
+
+    private static BufferedImage loadImage(File file) throws IOException {
+        BufferedImage source = ImageIO.read(file);
+        if (source == null) {
+            fail("Not a supported image: " + file.getName());
+        }
+        BufferedImage image = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = image.createGraphics();
+        g.drawImage(source, 0, 0, null);
+        g.dispose();
+        return image;
     }
 
     private static void fail(String message) {
