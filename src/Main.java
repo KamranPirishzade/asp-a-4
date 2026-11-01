@@ -28,14 +28,16 @@ public class Main {
         BufferedImage image = loadImage(file);
         SwingUtilities.invokeAndWait(() -> ImageWindow.show(image, file.getName()));
         Processor processor = new Processor(image, size);
+        int threads = mode.equals("S") ? 1 : Runtime.getRuntime().availableProcessors();
+
+        long start = System.nanoTime();
         if (mode.equals("S")) {
             processor.runSingle();
-            System.out.println("Done with 1 thread.");
         } else {
-            int threads = Runtime.getRuntime().availableProcessors();
             processor.runMulti(threads);
-            System.out.println("Done with " + threads + " threads.");
         }
+        long millis = (System.nanoTime() - start) / 1_000_000;
+        System.out.println("Done with " + threads + " thread(s) in " + millis + " ms");
 
         ImageIO.write(image, "jpg", new File("result.jpg"));
         System.out.println("Saved result.jpg");
