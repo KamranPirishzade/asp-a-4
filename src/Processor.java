@@ -1,5 +1,7 @@
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Processor {
     private static final long ANIMATION_NANOS = 10_000_000_000L;
@@ -24,6 +26,23 @@ public class Processor {
 
     public void runSingle() {
         processRows(0, rows);
+    }
+
+    public void runMulti(int threadCount) throws InterruptedException {
+        int threads = Math.min(threadCount, rows);
+        List<Thread> workers = new ArrayList<>();
+
+        for (int i = 0; i < threads; i++) {
+            int firstRow = i * rows / threads;
+            int lastRow = (i + 1) * rows / threads;
+            Thread worker = new Thread(() -> processRows(firstRow, lastRow));
+            workers.add(worker);
+            worker.start();
+        }
+
+        for (Thread worker : workers) {
+            worker.join();
+        }
     }
 
     private void processRows(int firstRow, int lastRow) {

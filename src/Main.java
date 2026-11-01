@@ -28,8 +28,14 @@ public class Main {
         BufferedImage image = loadImage(file);
         SwingUtilities.invokeAndWait(() -> ImageWindow.show(image, file.getName()));
         Processor processor = new Processor(image, size);
-        processor.runSingle();
-        System.out.println("Done.");
+        if (mode.equals("S")) {
+            processor.runSingle();
+            System.out.println("Done with 1 thread.");
+        } else {
+            int threads = Runtime.getRuntime().availableProcessors();
+            processor.runMulti(threads);
+            System.out.println("Done with " + threads + " threads.");
+        }
     }
 
     private static int parseSize(String text) {
