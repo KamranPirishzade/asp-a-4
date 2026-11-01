@@ -36,6 +36,9 @@ public class Main {
             processor.runMulti(threads);
             System.out.println("Done with " + threads + " threads.");
         }
+
+        ImageIO.write(image, "jpg", new File("result.jpg"));
+        System.out.println("Saved result.jpg");
     }
 
     private static int parseSize(String text) {
