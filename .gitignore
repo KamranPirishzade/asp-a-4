@@ -1,0 +1,6 @@
+   out/
+   *.class
+   result.jpg
+   .idea/
+   *.iml
+   .DS_Store
