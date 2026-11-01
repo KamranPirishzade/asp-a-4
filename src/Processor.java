@@ -21,7 +21,7 @@ public class Processor {
         this.size = size;
         this.rows = (height + size - 1) / size;
         int columns = (width + size - 1) / size;
-        this.pauseNanos = Math.min(ANIMATION_NANOS / ((long) rows * columns), MAX_PAUSE_NANOS);
+        this.pauseNanos = Boolean.getBoolean("noDelay")? 0 : Math.min(ANIMATION_NANOS / ((long) rows * columns), MAX_PAUSE_NANOS);
     }
 
     public void runSingle() {
