@@ -27,6 +27,9 @@ public class Main {
 
         BufferedImage image = loadImage(file);
         SwingUtilities.invokeAndWait(() -> ImageWindow.show(image, file.getName()));
+        Processor processor = new Processor(image, size);
+        processor.runSingle();
+        System.out.println("Done.");
     }
 
     private static int parseSize(String text) {
