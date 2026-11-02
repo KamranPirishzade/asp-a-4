@@ -78,6 +78,8 @@ I processed `large.jpg` with square size 20 using both `S` and `M` modes. Then I
 
 ## Results
 
+With the animation (normal run of `large.jpg`, square size 20), S took 9999 ms and M took 1001 ms, exactly 10 times faster with 10 threads. This difference mostly comes from the pauses running in parallel (see Critique). The measurements below have the pause disabled, so they show the real processing speed.
+
 Apple M5, 10 cores, square size 5, delay disabled.
 
 ### First result
