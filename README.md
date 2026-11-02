@@ -8,20 +8,25 @@ The program shows an image and replaces every square of the given size with its 
 
 Requirements: JDK 17 or newer (tested with OpenJDK 27 on macOS). No other libraries are needed.
 
-The same commands work on macOS, Windows and Linux, from the repository folder:
+The same commands work on macOS, Windows and Linux:
 
 ```bash
+git clone https://github.com/KamranPirishzade/asp-a-4.git
+cd asp-a-4
 javac -d out -sourcepath src src/Main.java
-java -cp out Main samples/large.jpg 20 M
+java -cp out Main samples/photo.jpg 20 S
+java -cp out Main samples/photo.jpg 20 M
 ```
 
 | Argument | Meaning |
 |---|---|
-| `samples/large.jpg` | the image file |
+| `samples/photo.jpg` | the image file |
 | `20` | square size in pixels |
 | `M` | `S` = single-threaded, `M` = multi-threaded |
 
-`result.jpg` is saved in the folder where the command is run. Closing the window stops the program.
+If the image path contains spaces, put it in quotes, for example `java -cp out Main "C:\My Photos\photo.jpg" 20 M`.
+
+`result.jpg` is saved in the folder where the command is run. When the processing ends, the time is printed in the terminal. Closing the window stops the program.
 
 For very large images, if Java reports `OutOfMemoryError`, give it more memory: `java -Xmx4g -cp out Main photo.jpg 20 M`.
 
@@ -71,6 +76,14 @@ I also tested `large.jpg`, which is 6000 x 4000 and bigger than my screen. The p
 | Before | After (square size 50, I scaled it down for this README) |
 |---|---|
 | ![large](samples/large.jpg) | ![large result](images/large_result.jpg) |
+
+### Real photo
+
+A photo with many colors and details, to show the effect on a real image (photo from Unsplash).
+
+| Before | After (square size 50, I scaled it down for this README) |
+|---|---|
+| ![photo](samples/photo.jpg) | ![photo result](images/photo_result.jpg) |
 
 ### Same result in both modes
 
