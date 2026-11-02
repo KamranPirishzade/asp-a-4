@@ -1,10 +1,8 @@
-import java.io.File;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
-import javax.swing.SwingUtilities;
-
 public class Main {
     private static final String USAGE = "Usage: java -cp out Main <image.jpg> <square size> <S|M>";
 
@@ -26,8 +24,9 @@ public class Main {
         }
 
         BufferedImage image = loadImage(file);
-        SwingUtilities.invokeAndWait(() -> ImageWindow.show(image, file.getName()));
-        Processor processor = new Processor(image, size);
+        ImageWindow window = ImageWindow.open(image, file.getName());
+
+        Processor processor = new Processor(image, size, window);
         int threads = mode.equals("S") ? 1 : Runtime.getRuntime().availableProcessors();
 
         long start = System.nanoTime();

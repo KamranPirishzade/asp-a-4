@@ -13,15 +13,19 @@ public class Processor {
     private final int size;
     private final int rows;
     private final long pauseNanos;
+    private final ImageWindow window;
 
-    public Processor(BufferedImage image, int size) {
+    public Processor(BufferedImage image, int size, ImageWindow window) {
         this.pixels = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
         this.width = image.getWidth();
         this.height = image.getHeight();
         this.size = size;
+        this.window = window;
         this.rows = (height + size - 1) / size;
         int columns = (width + size - 1) / size;
-        this.pauseNanos = Boolean.getBoolean("noDelay")? 0 : Math.min(ANIMATION_NANOS / ((long) rows * columns), MAX_PAUSE_NANOS);
+        this.pauseNanos = Boolean.getBoolean("noDelay")
+                ? 0
+                : Math.min(ANIMATION_NANOS / ((long) rows * columns), MAX_PAUSE_NANOS);
     }
 
     public void runSingle() {
@@ -51,9 +55,13 @@ public class Processor {
             int y = row * size;
             int squareHeight = Math.min(size, height - y);
             for (int x = 0; x < width; x += size) {
-                SquareAverager.average(pixels, width, x, y, Math.min(size, width - x), squareHeight);
-                next += pauseNanos;
-                pauseUntil(next);
+                int squareWidth = Math.min(size, width - x);
+                int color = SquareAverager.average(pixels, width, x, y, squareWidth, squareHeight);
+                window.paintSquare(x, y, squareWidth, squareHeight, color);
+                if (pauseNanos > 0) {
+                    next += pauseNanos;
+                    pauseUntil(next);
+                }
             }
         }
     }

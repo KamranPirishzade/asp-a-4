@@ -4,7 +4,7 @@ public final class SquareAverager {
     private SquareAverager() {
     }
 
-    public static void average(int[] pixels, int imageWidth, int x, int y, int width, int height) {
+    public static int average(int[] pixels, int imageWidth, int x, int y, int width, int height) {
         long red = 0;
         long green = 0;
         long blue = 0;
@@ -25,5 +25,6 @@ public final class SquareAverager {
             int start = row * imageWidth + x;
             Arrays.fill(pixels, start, start + width, color);
         }
+        return color;
     }
 }
