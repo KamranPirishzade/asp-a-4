@@ -23,6 +23,7 @@ java -cp out Main samples/large.jpg 20 M
 
 `result.jpg` is saved in the folder where the command is run. Closing the window stops the program.
 
+For very large images, if Java reports `OutOfMemoryError`, give it more memory: `java -Xmx4g -cp out Main photo.jpg 20 M`.
 ## Design
 
 | File | Responsibility |
@@ -72,3 +73,11 @@ I think the JIT compiler may also affect the results. With one thread, the loop 
 This also shows that the threads can execute in parallel on different CPU cores. However, using more threads does not always mean better performance. It depends on how much work each thread needs to do.
 
 The speedup was around 4.3 times instead of 10 times. One possible reason is that the Apple M5 has both performance and efficiency cores. Since I divided the image into equal parts, threads running on slower cores may take longer to finish, and the program needs to wait for all of them.
+
+## Critique
+
+- **Equal stripes are not always balanced.** I divided the image into equal horizontal parts for each thread. However, this does not mean that all threads finish at the same time, because some CPU cores may be slower than others. The total processing time depends on the slowest thread. One possible improvement would be to use a shared counter (`AtomicInteger`), where each thread takes the next available row of squares. This way, threads that finish earlier can continue processing other rows.
+- **Artificial pause.** I added the pause only to make the processing visible in the window. With this pause, mode `M` looks around 10 times faster than mode `S`, but this happens mainly because multiple threads can sleep at the same time. So, this is not the real performance improvement. For the actual performance comparison, I disabled the pause and used the results from the previous section.
+- **Window synchronization.** The window reads the image pixels while the worker threads are changing them. Because I did not add synchronization between them, the window might sometimes display a square that is only partly processed. However, the window updates again after 30 ms, so this is not a big problem for displaying progress. The saved image is not affected because I use `join()` to wait until all threads finish before saving it.
+- **Simple averaging.** I calculated the average color directly from the RGB values of the pixels. However, this is not exactly how our eyes see mixed colors. A more accurate method would be to convert the RGB values to linear light before calculating the average.
+- **Memory usage.** I keep the whole image in memory, using 4 bytes for each pixel. For example, an image with 100 million pixels would need around 400 MB just for the pixel data. Because of this, very large images may require more memory for Java. I could increase the available heap memory using `-Xmx`.
