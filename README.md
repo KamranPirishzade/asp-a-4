@@ -24,6 +24,7 @@ java -cp out Main samples/large.jpg 20 M
 `result.jpg` is saved in the folder where the command is run. Closing the window stops the program.
 
 For very large images, if Java reports `OutOfMemoryError`, give it more memory: `java -Xmx4g -cp out Main photo.jpg 20 M`.
+
 ## Design
 
 | File | Responsibility |
@@ -33,7 +34,7 @@ For very large images, if Java reports `OutOfMemoryError`, give it more memory: 
 | `Processor.java` | Divides the image into squares and processes them using one or multiple threads |
 | `SquareAverager.java` | Calculates the average color of each square |
 
-- **One shared image.** I converted the image to `TYPE_INT_RGB`, so each pixel is stored as an integer in the same array. All threads work directly on this array. The window updates every 30 ms, which allows us to see the changes while the image is being processed.
+- **Image and view.** I converted the image to `TYPE_INT_RGB`, so each pixel is stored as an integer in one array, and all threads work directly on this array. The window keeps its own small copy (the view), the size it shows on the screen. When a thread finishes a square, it also paints the average color into the matching area of the view. The window redraws only this small view every 30 ms, so it does not slow down the threads by redrawing the whole original image.
 - **Original size.** If the image is larger than the screen, I only resize it for displaying in the window. The actual processing is still done on the original image, and `result.jpg` is also saved in its original size.
 - **Squares.** I divided the image into squares and processed them from left to right, row by row. If the image size is not exactly divisible by the square size, the squares at the right and bottom edges are smaller.
 - **Averaging.** For each square, I calculate the average red, green and blue values of its pixels. Then I use this average color for the whole square.
@@ -49,35 +50,63 @@ For very large images, if Java reports `OutOfMemoryError`, give it more memory: 
 
 ## Testing
 
-- **Checkerboard image.** I used `samples/checkerboard.jpg`, which is a black and white checkerboard with 10 px cells. When I use a square size of 20, each square contains two black and two white cells, so the expected result is gray. The only exception is the bottom-right square, which is 10 x 10 and contains one white cell, so it stays white. This test also helps me check if the program correctly handles smaller squares at the edges.
+### Checkerboard
 
-- **Large image.** I also tested `samples/large.jpg`, which has a resolution of 6000 x 4000. Since this image is bigger than my screen, the program makes it smaller when displaying it in the window. However, the actual image is still processed at its original resolution, and `result.jpg` is saved as 6000 x 4000.
+I used a 1010 x 610 checkerboard with 10 px cells. With square size 20, most squares contain the same amount of black and white, so the result should be gray.
 
-- **Same result in both modes.** I ran `large.jpg` with square size 20 in mode `S` and mode `M` and compared the two `result.jpg` files with `cmp`. They were identical, so the threads produce exactly the same image as the single-threaded version.
+| Before | After (square size 20) |
+|---|---|
+| ![checkerboard](samples/checkerboard.jpg) | ![checkerboard result](images/checkerboard_result.jpg) |
+
+**The white square in the bottom-right is correct.** The image size is not fully divisible by 20, so the last square is only 10 x 10 and contains one white cell. The other edge squares still contain both black and white, so they become gray.
+
+![corner zoom](images/checkerboard_corner.png)
+
+This also shows that smaller squares at the edges are handled correctly.
+
+### Large image
+
+I also tested `large.jpg`, which is 6000 x 4000 and bigger than my screen. The program only scales it for the window, while the real image is still processed and saved at 6000 x 4000.
+
+| Before | After (square size 50, I scaled it down for this README) |
+|---|---|
+| ![large](samples/large.jpg) | ![large result](images/large_result.jpg) |
+
+### Same result in both modes
+
+I processed `large.jpg` with square size 20 using both `S` and `M` modes. Then I compared the two result files with `cmp` and they were identical, so both modes produced the same output.
 
 ## Results
 
-I ran the tests on my Mac with an Apple M5 processor (10 cores). I used `samples/large.jpg` with a square size of 5 and disabled the delay using `-DnoDelay=true`. I ran each test 3 times to compare the results.
+Apple M5, 10 cores, square size 5, delay disabled.
 
-| | Normal | `-Xint` (JIT disabled) |
+### First result
+
+At first, multithreading was slower. On `large.jpg` (6000 x 4000), one thread took about 40 ms, while 10 threads took about 78 ms.
+
+### Finding the problem
+
+I measured the threads separately. Each of the 10 threads did only 1/10 of the work, but took 56-74 ms, longer than one thread doing everything (41 ms). So the threads were slowing each other down.
+
+The problem was `System.nanoTime()`, which was called after every square (about 960,000 times) even when the delay was disabled. On macOS, Java keeps one shared value so that time never goes backwards between threads, and every call updates it. With many threads, they had to wait for each other there. This is competition synchronization hidden inside a library call. I changed the code so the clock is not used when there is no delay.
+
+### After the fix
+
+| | `large.jpg` (6000 x 4000) | 12000 x 8000 |
 |---|---|---|
-| S, 1 thread | 40 ms | 685–707 ms |
-| M, 10 threads | 67–76 ms | 159–162 ms |
+| S, 1 thread | 36-37 ms | 125 ms |
+| M, 10 threads | 47-52 ms | 65-76 ms |
 
-**Normal mode:** Using multiple threads actually made the program slower. In this case, calculating the average color is a very simple operation, which takes around 2 ns per pixel. Because the calculation is so fast, memory access and the extra time needed to create 10 threads can affect the performance more than the calculation itself. All cores share the same memory, so more threads cannot read it faster.
+On the bigger image, multithreading was about 1.8 times faster.
 
-I think the JIT compiler may also affect the results. With one thread, the loop may get optimized earlier. But with 10 threads, they may initially run interpreted code, and the processing could finish before the JIT optimizations become useful.
+For the smaller image, using many threads was not always better because creating and starting threads also has a cost. The best result there was around 2-4 threads.
 
-**With `-Xint`:** When I disabled the JIT compiler, using multiple threads made the program around 4.3 times faster. Without JIT optimization, processing each pixel takes more time, so the CPU has more work to do. In this situation, dividing the image between multiple threads gives a clear performance improvement.
-
-This also shows that the threads can execute in parallel on different CPU cores. However, using more threads does not always mean better performance. It depends on how much work each thread needs to do.
-
-The speedup was around 4.3 times instead of 10 times. One possible reason is that the Apple M5 has both performance and efficiency cores. Since I divided the image into equal parts, threads running on slower cores may take longer to finish, and the program needs to wait for all of them.
+I also tested with `-Xcomp`, and 10 threads took 31-38 ms instead of 47-52 ms, which shows that JIT warm-up was also part of the extra cost.
 
 ## Critique
 
 - **Equal stripes are not always balanced.** I divided the image into equal horizontal parts for each thread. However, this does not mean that all threads finish at the same time, because some CPU cores may be slower than others. The total processing time depends on the slowest thread. One possible improvement would be to use a shared counter (`AtomicInteger`), where each thread takes the next available row of squares. This way, threads that finish earlier can continue processing other rows.
 - **Artificial pause.** I added the pause only to make the processing visible in the window. With this pause, mode `M` looks around 10 times faster than mode `S`, but this happens mainly because multiple threads can sleep at the same time. So, this is not the real performance improvement. For the actual performance comparison, I disabled the pause and used the results from the previous section.
-- **Window synchronization.** The window reads the image pixels while the worker threads are changing them. Because I did not add synchronization between them, the window might sometimes display a square that is only partly processed. However, the window updates again after 30 ms, so this is not a big problem for displaying progress. The saved image is not affected because I use `join()` to wait until all threads finish before saving it.
+- **Window synchronization.** The window reads the view while the threads are still changing it, without synchronization, so sometimes one square can look unfinished for a moment. The next redraw fixes it, so I accepted this for a display. The saved image is correct because it is saved only after all threads finish (`join()`).
 - **Simple averaging.** I calculated the average color directly from the RGB values of the pixels. However, this is not exactly how our eyes see mixed colors. A more accurate method would be to convert the RGB values to linear light before calculating the average.
 - **Memory usage.** I keep the whole image in memory, using 4 bytes for each pixel. For example, an image with 100 million pixels would need around 400 MB just for the pixel data. Because of this, very large images may require more memory for Java. I could increase the available heap memory using `-Xmx`.
